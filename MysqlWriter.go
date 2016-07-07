@@ -15,6 +15,7 @@ type  MysqlWriter struct {
 	database string
 	port     string
 	created  map[string]bool
+	firstRun bool
 }
 
 func handleErr(err error) {
@@ -29,6 +30,7 @@ func NewMysqlWriter(username, password, address, port, database string) MysqlWri
 		database : database,
 		port: port,
 		created: make(map[string]bool, 1),
+		firstRun: true,
 	}
 }
 
@@ -40,32 +42,44 @@ func (m MysqlWriter) Write(ti TrackInfo) {
 	}
 	defer db.Close()
 
-	if !m.created[ti.NormalizedStationName()] {
-		_, err := db.Exec(fmt.Sprintf("CREATE TABLE IF NOT EXISTS `radiowatch`.`%v` ( `id` INT UNSIGNED NOT NULL AUTO_INCREMENT , `artist` VARCHAR(255) NOT NULL , `title` VARCHAR(255) NOT NULL , `station` VARCHAR(255) NOT NULL , `time` INT UNSIGNED NOT NULL , PRIMARY KEY (`id`)) ENGINE = InnoDB; ", ti.NormalizedStationName()))
+	if m.firstRun {
+		sql := `CREATE TABLE IF NOT EXISTS records  (
+   					id  int(10) unsigned NOT NULL AUTO_INCREMENT,
+				   	artist  varchar(255) COLLATE utf8_bin NOT NULL,
+				   	title  varchar(255) COLLATE utf8_bin NOT NULL,
+				   	station  varchar(255) COLLATE utf8_bin NOT NULL,
+				   	time  int(10) unsigned NOT NULL,
+			   PRIMARY KEY ( id ),
+			   KEY  time  ( time )
+			 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin`
+
+		_, err := db.Exec(sql)
 		if err != nil {
 			handleErr(err)
 			return
 		}
-		m.created[ti.NormalizedStationName()] = true
+
+		m.firstRun = false
 	}
 
-	insertQuery := fmt.Sprintf(`
-INSERT INTO %[1]v.%[2]v (artist, title, station, time)
-  SELECT ?, ?, ?, ?
-    from dual
-    WHERE NOT exists(SELECT * from %[1]v.%[2]v
-                        WHERE id = (select max(id) from %[1]v.%[2]v)
-                          AND artist = ?
-                          and title = ?);
-	`, m.database, ti.NormalizedStationName())
+	insertQuery := `
+		INSERT INTO records (artist, title, station, time)
+  			SELECT ?, ?, ?, ?
+    		from dual
+    		WHERE NOT exists(SELECT * from records
+            	WHERE id = (select max(id) from records where station = ?)
+				AND artist = ?
+                and title = ?);
+	`
 	_, err = db.Exec(
 		insertQuery,
 		ti.Artist,
 		ti.Title,
-		ti.Station,
+		ti.NormalizedStationName(),
 		time.Now().Unix(),
+		ti.NormalizedStationName(),
 		ti.Artist,
-		ti.Title,)
+		ti.Title, )
 	if err != nil {
 		handleErr(err)
 		return
