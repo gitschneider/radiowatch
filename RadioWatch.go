@@ -109,6 +109,12 @@ func (w *Watcher) runCrawlers() {
 				wg.Add(1)
 				go func(crawler Crawler) {
 					defer wg.Done()
+					defer func() {
+						if r := recover(); r != nil{
+							fmt.Fprintf(os.Stderr, "Crawler %s panicked with message %s", crawler.Name(), r)
+						}
+					}()
+
 					counter++
 					track, err := crawler.Crawl()
 					if err != nil {
