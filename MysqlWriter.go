@@ -2,13 +2,14 @@ package radiowatch
 
 import (
 	"database/sql"
-	_ "github.com/go-sql-driver/mysql"
-	log "github.com/Sirupsen/logrus"
-	"time"
 	"fmt"
+	"time"
+
+	log "github.com/Sirupsen/logrus"
+	_ "github.com/go-sql-driver/mysql"
 )
 
-type  MysqlWriter struct {
+type MysqlWriter struct {
 	username string
 	password string
 	address  string
@@ -20,12 +21,12 @@ type  MysqlWriter struct {
 
 func NewMysqlWriter(username, password, address, port, database string) MysqlWriter {
 	return MysqlWriter{
-		username : username,
+		username: username,
 		password: password,
-		address: address,
-		database : database,
-		port: port,
-		created: make(map[string]bool, 1),
+		address:  address,
+		database: database,
+		port:     port,
+		created:  make(map[string]bool, 1),
 		firstRun: true,
 	}
 }
@@ -34,8 +35,8 @@ func (m MysqlWriter) Write(ti TrackInfo) {
 	db, err := sql.Open("mysql", fmt.Sprintf("%v:%v@tcp(%v:%v)/%v", m.username, m.password, m.address, m.port, m.database))
 	if err != nil {
 		log.WithField(
-		    "message",
-		    err.Error(),
+			"message",
+			err.Error(),
 		).Error("Error when writing to database")
 		return
 	}
@@ -81,7 +82,7 @@ func (m MysqlWriter) Write(ti TrackInfo) {
 		time.Now().Unix(),
 		ti.NormalizedStationName(),
 		ti.Artist,
-		ti.Title, )
+		ti.Title)
 	if err != nil {
 		log.WithField(
 			"message",

@@ -1,22 +1,23 @@
 /*
 Package radiowatch provides a small framework to crawl radio stations periodically.
- */
+*/
 package radiowatch
 
 import (
-	"time"
 	"sync"
+	"time"
 
 	"strings"
+
 	log "github.com/Sirupsen/logrus"
 )
 
-type(
+type (
 	/*
-	A Watcher is the main object.
-	It keeps track of the crawlers, starts crawling,
-	takes the results and delegates them to the Writer which will persist them.
-	 */
+		A Watcher is the main object.
+		It keeps track of the crawlers, starts crawling,
+		takes the results and delegates them to the Writer which will persist them.
+	*/
 	Watcher struct {
 		refreshInterval time.Duration
 		crawlers        []Crawler
@@ -25,22 +26,22 @@ type(
 	}
 
 	/*
-	A concrete Crawler implementation crawls one specific radio station and returns
-	information about the currently played track.
-	 */
+		A concrete Crawler implementation crawls one specific radio station and returns
+		information about the currently played track.
+	*/
 	Crawler interface {
 		/*
-		Takes the needed actions to get information about the currently played track.
-		Returns the information in a TrackInfo struct or an error.
-		 */
+			Takes the needed actions to get information about the currently played track.
+			Returns the information in a TrackInfo struct or an error.
+		*/
 		Crawl() (*TrackInfo, error)
 		/*
-		Returns the name of the radio station it is crawling.
-		 */
+			Returns the name of the radio station it is crawling.
+		*/
 		Name() string
 		/*
-		Returns the time at which this crawler should be run next
-		 */
+			Returns the time at which this crawler should be run next
+		*/
 		NextCrawlTime() time.Time
 	}
 
@@ -56,7 +57,7 @@ type(
 /*
 Returns a new instance of Watcher.
 Takes a concrete implementation of Writer which handles the persisting of results
- */
+*/
 func NewWatcher(resultsWriter Writer) *Watcher {
 	w := &Watcher{writer: resultsWriter}
 	w.SetInterval("60s")
@@ -68,7 +69,7 @@ The watcher will check the crawlers every {interval} seconds if its crawling tim
 is in the past and should therefore be crawled now.
 Uses time.ParseDuration and takes therefore the same input like "60s" or "5m".
 Returns only an error if the input was invalid.
- */
+*/
 func (w *Watcher) SetInterval(interval string) error {
 	duration, err := time.ParseDuration(interval)
 	if err != nil {
@@ -81,14 +82,14 @@ func (w *Watcher) SetInterval(interval string) error {
 
 /*
 Add a concrete Crawler to this watcher
- */
+*/
 func (w *Watcher) AddCrawler(c Crawler) {
 	w.crawlers = append(w.crawlers, c)
 }
 
 /*
 Add several Crawlers at once
- */
+*/
 func (w *Watcher) AddCrawlers(crawlers []Crawler) {
 	for _, e := range crawlers {
 		w.AddCrawler(e)
@@ -97,7 +98,7 @@ func (w *Watcher) AddCrawlers(crawlers []Crawler) {
 
 /*
 Run all Crawlers.
- */
+*/
 func (w *Watcher) runCrawlers() {
 	start := time.Now()
 	tracks := make(chan *TrackInfo)
@@ -123,15 +124,15 @@ func (w *Watcher) runCrawlers() {
 					track, err := crawler.Crawl()
 					if err != nil {
 						log.WithFields(log.Fields{
-							"error": err.Error(),
+							"error":   err.Error(),
 							"crawler": crawler.Name(),
 						}).Error("Error while crawling")
 						return
 					}
 					log.WithFields(log.Fields{
 						"station": track.Station,
-						"artist": track.Artist,
-						"title": track.Title,
+						"artist":  track.Artist,
+						"title":   track.Title,
 					}).Info("Crawled station")
 
 					track.Artist = strings.TrimSpace(track.Artist)
@@ -151,7 +152,7 @@ func (w *Watcher) runCrawlers() {
 	}
 	if counter > 0 {
 		log.WithFields(log.Fields{
-			"count": counter,
+			"count":    counter,
 			"duration": time.Now().Sub(start).Seconds(),
 		}).Info("Crawling finished")
 	}
@@ -160,7 +161,7 @@ func (w *Watcher) runCrawlers() {
 /*
 Starts the crawling. This will check ever {interval} seconds if one of the
 crawler should been run and starts it.
- */
+*/
 func (w *Watcher) StartCrawling() {
 	w.runCrawlers()
 	w.ticker = time.NewTicker(w.refreshInterval)
@@ -173,7 +174,7 @@ func (w *Watcher) StartCrawling() {
 
 /*
 Stops the crawling
- */
+*/
 func (w *Watcher) StopCrawling() {
 	w.ticker.Stop()
 }
