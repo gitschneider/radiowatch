@@ -5,10 +5,10 @@ package radiowatch
 
 import (
 	"time"
-	"fmt"
-	"os"
 	"sync"
+
 	"strings"
+	log "github.com/Sirupsen/logrus"
 )
 
 type(
@@ -110,18 +110,30 @@ func (w *Watcher) runCrawlers() {
 				go func(crawler Crawler) {
 					defer wg.Done()
 					defer func() {
-						if r := recover(); r != nil{
-							fmt.Fprintf(os.Stderr, "Crawler %s panicked with message %s", crawler.Name(), r)
+						if r := recover(); r != nil {
+							log.WithFields(log.Fields{
+								"crawler": crawler.Name(),
+								"message": r,
+							}).Error("Crawler panicked")
+
 						}
 					}()
 
 					counter++
 					track, err := crawler.Crawl()
 					if err != nil {
-						fmt.Fprintf(os.Stderr, "Error occured while crawling %v: %v\n", crawler.Name(), err.Error())
+						log.WithFields(log.Fields{
+							"error": err.Error(),
+							"crawler": crawler.Name(),
+						}).Error("Error while crawling")
 						return
 					}
-					fmt.Printf("%v plays now (%v): %v - %v\n", track.Station, time.Now(), track.Artist, track.Title)
+					log.WithFields(log.Fields{
+						"station": track.Station,
+						"artist": track.Artist,
+						"title": track.Title,
+					}).Info("Crawled station")
+
 					track.Artist = strings.TrimSpace(track.Artist)
 					track.Title = strings.TrimSpace(track.Title)
 					tracks <- track
@@ -138,7 +150,10 @@ func (w *Watcher) runCrawlers() {
 		}()
 	}
 	if counter > 0 {
-		fmt.Printf(">> Crawled %v stations in %vs\n", counter, time.Now().Sub(start).Seconds())
+		log.WithFields(log.Fields{
+			"count": counter,
+			"duration": time.Now().Sub(start).Seconds(),
+		}).Info("Crawling finished")
 	}
 }
 
@@ -150,7 +165,7 @@ func (w *Watcher) StartCrawling() {
 	w.runCrawlers()
 	w.ticker = time.NewTicker(w.refreshInterval)
 	go func() {
-		for _ = range w.ticker.C {
+		for range w.ticker.C {
 			w.runCrawlers()
 		}
 	}()

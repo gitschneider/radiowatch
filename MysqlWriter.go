@@ -3,9 +3,9 @@ package radiowatch
 import (
 	"database/sql"
 	_ "github.com/go-sql-driver/mysql"
-	"fmt"
-	"os"
+	log "github.com/Sirupsen/logrus"
 	"time"
+	"fmt"
 )
 
 type  MysqlWriter struct {
@@ -16,10 +16,6 @@ type  MysqlWriter struct {
 	port     string
 	created  map[string]bool
 	firstRun bool
-}
-
-func handleErr(err error) {
-	fmt.Fprintf(os.Stderr, "Error when writing to database: %v\n", err.Error())
 }
 
 func NewMysqlWriter(username, password, address, port, database string) MysqlWriter {
@@ -37,7 +33,10 @@ func NewMysqlWriter(username, password, address, port, database string) MysqlWri
 func (m MysqlWriter) Write(ti TrackInfo) {
 	db, err := sql.Open("mysql", fmt.Sprintf("%v:%v@tcp(%v:%v)/%v", m.username, m.password, m.address, m.port, m.database))
 	if err != nil {
-		handleErr(err)
+		log.WithField(
+		    "message",
+		    err.Error(),
+		).Error("Error when writing to database")
 		return
 	}
 	defer db.Close()
@@ -55,7 +54,10 @@ func (m MysqlWriter) Write(ti TrackInfo) {
 
 		_, err := db.Exec(sql)
 		if err != nil {
-			handleErr(err)
+			log.WithField(
+				"message",
+				err.Error(),
+			).Error("Error when writing to database")
 			return
 		}
 
@@ -81,7 +83,10 @@ func (m MysqlWriter) Write(ti TrackInfo) {
 		ti.Artist,
 		ti.Title, )
 	if err != nil {
-		handleErr(err)
+		log.WithField(
+			"message",
+			err.Error(),
+		).Error("Error when writing to database")
 		return
 	}
 }
